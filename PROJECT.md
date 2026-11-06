@@ -5,8 +5,8 @@
 Tyler is a local-first RSS reader for macOS, Windows, and Linux.
 It is built with Tauri 2, Rust, React 19, Vite, and SQLite, with a three-pane reading interface.
 It subscribes to RSS, Atom, and JSON feeds, organizes them into folders and tags, and supports smart views, full-text search, and offline media.
-All subscriptions, articles, reading state, cached media, and settings are stored on the machine; there is no account, cloud sync, or telemetry. Optional Kokoro ONNX text to speech runs locally after an explicit, one-time model download. Optional LLM summaries send article text only to the user's configured endpoint on explicit request.
-The Rust backend owns HTTP, feed parsing, SQLite/FTS5, media caching, native Kokoro inference, optional LLM summary requests/cache, OPML, and backup/restore.
+All subscriptions, articles, reading state, cached media, and settings are stored on the machine; there is no account, cloud sync, or telemetry. Optional LLM summaries send article text only to the user's configured endpoint on explicit request.
+The Rust backend owns HTTP, feed parsing, SQLite/FTS5, media caching, optional LLM summary requests/cache, OPML, and backup/restore.
 The React frontend owns the library, reader, command palette, dialogs, and keyboard-driven workflows.
 
 ## 2. Full feature list
@@ -41,10 +41,6 @@ The React frontend owns the library, reader, command palette, dialogs, and keybo
 - Article list and reader use Down/Up arrows for next/previous article navigation. These shortcuts pause in text fields and overlays and prevent native arrow scrolling when handled. Reader navigation hints and the shortcut sheet show the arrow keys.
 
 ### Reader
-- Optional Settings → Read aloud uses native ONNX Runtime (`ort`) with the pinned `onnx-community/Kokoro-82M-v1.0-ONNX` q8 model (~92 MB) and its 28 supported official American/British English voices. Heart is the default. Only enabling TTS starts model/selected-voice downloads; each additional selected voice is ~0.5 MB. The UI explains size, progress, offline reuse, errors/retry, and that text stays local.
-- App-owned playback controls sit beside the command palette in the global title bar: play/pause and an active-session square stop button, plus the source article title. Reads title and currently loaded body (summary fallback); missing body text gives an actionable notification. `ttsKeepPlaying` defaults false and stops on selection changes, including during preparation; true preserves original playback across navigation. Disable, stop, completed playback, unmount, and backup import release audio/worker state; voice changes affect the next playback.
-- A small module worker uses `phonemizer` with explicit `en-us`/`en-gb` and Kokoro's cached tokenizer vocabulary to produce phoneme IDs. It splits sentence/word segments to at most 160 characters (80 for the first phrase), and subdivides again above a 160-token phoneme budget (including padding), below the model's 512-token context, to bound native activation memory. Rust `tts_engine.rs` runs the same q8 model natively with one intra/inter-op thread, no CPU spinning, no arena allocator, and no browser GPU/WASM model session. Audio returns as little-endian f32 PCM at 24 kHz through binary IPC. The first segment starts immediately; Web Audio schedules at most the current and one upcoming segment. Pause suspends audio and further lookahead. Stop cancels native inference using RunOptions, terminates phonemization, clears scheduled audio, and releases the native session/allocations; late results are ignored by session ID.
-- `tts.rs` downloads only pinned manifest assets in a blocking worker with a single download mutex, size/SHA-256 verification, temporary files, bounded HTTP timeouts, disable checks, and `tts:download` progress. `tyler-tts` serves only existing allowlisted files under the canonical model cache; it performs no network access. Interrupted/invalid assets are retried without downloading valid files again. Cache lives under `tts/<revision>/` beside the database, survives restore, and is excluded from portable backups.
 - Sanitized article HTML rendered in the reader. Scripts, forms, objects, and unsafe embeds are removed. Sandboxed HTTPS embeds allow only YouTube `/embed/` and Vimeo `/video/` players, with matching backend/frontend allowlists and CSP.
 - Load full article fetches up to 5 MiB of public source HTML with a 20-second timeout. Mozilla Readability extracts the article in an inert document; the backend sanitizes and stores it with full-text search updates. A source URL check guards against library replacement; refresh preserves extracted HTML/text/reading time. Extraction does not bypass paywalls or execute page JavaScript.
 - Settings → Reading → Load full article by default is off by default. When enabled, opening any article automatically uses the same extraction/save flow unless full text is already saved. Enabling the setting also loads the current article. In-flight requests are shared with the manual action; failures leave feed content readable and allow a manual retry. Automatic successes do not show a toast.
@@ -122,12 +118,12 @@ Generated and ignored directories are omitted from the tree below: `node_modules
 tyler-rss/
 ├── .github/
 │   ├── workflows/release.yml          # Tag-only CI/CD: six native builds, twelve verified installers, then publish.
-│   └── scripts/                      # check-release.mjs validates versions/assets; build-onnxruntime-macos-intel.sh builds Intel speech runtime.
+│   └── scripts/                      # check-release.mjs validates versions and installer assets.
 ├── scripts/bump-version.mjs           # Prompts for vMAJOR.MINOR.PATCH; updates five version files without committing or tagging.
 ├── index.html                         # Vite HTML entry; includes the initial loading screen, early theme script, shared CSS, and Tyler favicon.
 ├── package.json                       # Frontend metadata, npm scripts (dev/build/tauri/check/version:bump/release:check), and JS dependencies.
 ├── package-lock.json                  # Locked npm dependency tree; generated by npm.
-├── vite.config.ts                     # Vite config: React plugin, ES module workers, relative base, fixed dev port 1420, ignores src-tauri.
+├── vite.config.ts                     # Vite config: React plugin, relative base, fixed dev port 1420, ignores src-tauri.
 ├── .gitignore                         # Ignores build output, Tauri target/gen, node_modules, .DS_Store, logs, and env files.
 ├── README.md                          # Public overview: features, getting started, privacy, shortcuts, backups, source builds, AI assistance, and contributing.
 ├── LICENSE                            # MIT license; copyright 2026 Nitin Bansal.
@@ -149,7 +145,6 @@ tyler-rss/
 │   ├── api.js                         # Typed-ish wrappers around Tauri invoke; normalizes snake_case/camelCase fields and subscribes to refresh events.
 │   ├── store.jsx                      # Toast context/provider with success/error/info notifications and auto-dismiss timers.
 │   ├── styles.css                     # Global design tokens, theme variables, layout, sidebar, article list, onboarding, and shared UI styles.
-│   ├── tts/                           # English phonemization worker, Web Audio playback hook, and official voice metadata.
 │   ├── lib/
 │   │   ├── format.js                  # Formatting helpers: relative/absolute dates, date groups, times, hostnames, byte sizes, and reading time.
 │   │   ├── tags.js                    # Comma-separated tag name parsing; trims whitespace and drops empty entries.
@@ -203,9 +198,6 @@ tyler-rss/
         ├── feeds.rs                    # HTTP clients, URL normalization, feed parsing, sanitization, discovery, refresh/ingest, and image/icon caching.
         ├── articles.rs                 # Article queries, FTS/LIKE search, details, tag queries, state updates, mark-all-read, and media caching.
         ├── opml.rs                     # OPML outline parsing, folder creation, import from path/string, and folder-preserving export.
-        ├── tts_engine.rs               # Native single-threaded Kokoro inference, binary PCM IPC, cancellation/session lifecycle.
-        ├── tts.rs                      # Opt-in Kokoro downloads, integrity verification, and local asset serving.
-        ├── tts-assets.json             # Pinned model/tokenizer/voice sizes and SHA-256 hashes.
         ├── settings.rs                 # Settings defaults, validation, typed reads, patch writes, and last-refresh timestamp helpers.
         ├── summaries.rs                # OpenAI compatible summary requests, prompt assembly, word clipping/token budgets, and session-only cache with request coalescing.
         ├── subscriptions.rs            # Bounded background queues for first feed fetches and media caching, startup recovery, and feed-update events.
@@ -361,9 +353,6 @@ Settings values are stored as JSON text and use camelCase keys:
 | `openLinksInApp` | `false` | Settings → Reading; open originals/links in a separate Tyler window. |
 | `notificationsEnabled` | `false` | Optional new-article system notifications after refresh. |
 | `unreadBadge` | `true` | Dock/supported taskbar unread count; tray tooltip/title always show count. |
-| `ttsEnabled` | `false` | Explicit opt-in starts model/voice download; disabling stops playback. |
-| `ttsVoice` | `"af_heart"` | One of 28 official English Kokoro voices; validated on read/write. |
-| `ttsKeepPlaying` | `false` | Continue original article while navigating; otherwise stop on selection change. |
 | `llmEnabled` | `false` | Enable optional summary generation; no automatic LLM requests. |
 | `llmBaseUrl` | `""` | HTTP(S) API base URL; append `/chat/completions`. |
 | `llmApiKey` | `""` | Bearer token; local settings storage, included in backups. |
@@ -380,7 +369,6 @@ Settings values are stored as JSON text and use camelCase keys:
 ├── tyler.sqlite                  # Main SQLite database.
 ├── tyler.sqlite-wal              # WAL journal (when present).
 ├── tyler.sqlite-shm              # Shared-memory WAL file (when present).
-├── tts/<revision>/               # Optional Kokoro model, tokenizers, selected voices; excluded from backups.
 └── media/
     ├── feed-icons/               # Cached feed icons.
     ├── covers/                   # Cached article cover images.
@@ -394,7 +382,7 @@ Settings values are stored as JSON text and use camelCase keys:
 
 ## 5. Notes for future developers and LLMs
 
-- **Respect the local-first contract.** Do not add telemetry, accounts, cloud sync, or remote analytics. Network calls are limited to feed/media/OPML fetching, requested full articles/original pages/embeds, opt-in Kokoro model/voice downloads from Hugging Face, and explicitly requested LLM summaries through the user's configured endpoint. All persistent user data belongs under the data directory; summary responses remain in memory. Native TTS runtime code ships with the app; speech generation makes no network requests.
+- **Respect the local-first contract.** Do not add telemetry, accounts, cloud sync, or remote analytics. Network calls are limited to feed/media/OPML fetching, requested full articles/original pages/embeds, and explicitly requested LLM summaries through the user's configured endpoint. All persistent user data belongs under the data directory; summary responses remain in memory.
 - **`App.jsx` is the frontend state hub.** Scope, filters, search, article list, selected detail, refresh state, and dialogs are coordinated there. Avoid creating duplicate article/read-state stores; use the existing API and patch helpers.
 - **Pagination cursors are opaque.** `list_articles` accepts `cursor` and returns `nextCursor` (null at the end). Keep the returned cursor unchanged for load-more requests; reset it on scope/search/sort changes. Offset remains supported for older callers. Search rank is carried as a string to preserve its exact value through JavaScript and JSON.
 - **IPC changes require four places:** a Rust command in `commands.rs`, `reader.rs`, or `desktop.rs`, registration in `lib.rs`, a wrapper/normalizer in `src/api.js`, and documentation in `CONTRACT.md` plus this file.
@@ -411,10 +399,8 @@ Settings values are stored as JSON text and use camelCase keys:
 - **Regenerate icons instead of hand-editing them.** The canonical source is `src-tauri/icons/icon.svg`. Run `npx tauri icon src-tauri/icons/icon.svg`; commit the regenerated desktop/mobile assets and `public/tyler.svg`.
 - **macOS is case-insensitive by default.** Keep import paths and file casing exact (for example `src/components/CommandPalette.jsx`). A mismatched casing can work locally and fail on Linux.
 - **No formal test suite exists.** Use `npm run check` (frontend production build + `cargo check`). Manually exercise feed add/discovery, OPML file/link import, refresh, search, reader, and backup restore when touching those areas.
-- **TTS dependencies.** The frontend uses only `phonemizer` for English IPA; it does not load ONNX models into the webview. `ort = 2.0.0-rc.12` statically links native ONNX Runtime into the application. Its Cargo build downloads the matching CPU library for supported targets; packaged users need no separate runtime installation. Keep CPU threads bounded and idle spinning disabled.
 - **Release workflow.** `.github/workflows/release.yml` runs only on pushed `v*` tags and rejects tags other than `vMAJOR.MINOR.PATCH` or mismatched version metadata. It checks the frontend/Rust backend and builds native macOS Intel/Apple silicon DMGs, Windows x64/ARM64 EXE/MSI installers, and Linux x64/ARM64 AppImage/DEB/RPM packages. All twelve assets must be uploaded and nonempty before automatic publication; failures retain a reusable draft, and published releases cannot be overwritten. Release operations use the current repository and built-in token, including while developing in a temporary repository; public documentation links to `goodappsstore/tyler-rss`. macOS is ad-hoc signed without notarization; Windows is unsigned.
-- **Intel macOS speech runtime.** The pinned `ort` distribution has no Intel macOS prebuilt archive. CI builds ONNX Runtime 1.24.2 statically from source on `macos-15-intel`, caches its build directory, and sets `ORT_LIB_PATH` for Cargo. Other targets use `ort`'s prebuilt static libraries. Keep the source version and cache key aligned with `ort` when updating this dependency.
-- **Linux speech runtime compatibility.** Build x64 and ARM64 installers on Ubuntu 24.04 and install the current `libstdc++6` package. `ort`'s prebuilt archives reference glibc `__isoc23_*` functions and, on ARM64, the GCC 14 `__cxa_call_terminate` symbol; Ubuntu 22.04 passes `cargo check` but cannot link the app. Published Linux packages target Ubuntu 24.04 or compatible systems with glibc 2.39+ and the GCC 14 C++ runtime. `libfuse2t64` supports AppImage packaging on Ubuntu 24.04.
+- **Native build requirements.** macOS bundles require 13.3 or later. Linux installers are built on Ubuntu 24.04 for x64 and ARM64 and target compatible distributions. `libfuse2t64` supports AppImage packaging on Ubuntu 24.04.
 - **Version updates.** `npm run version:bump` prompts for a `vMAJOR.MINOR.PATCH` tag and updates the unprefixed version in `package.json`, `package-lock.json` (top level and root package), Tauri config, Cargo manifest, and Tyler's Cargo lock entry. It validates all edits before writing and never commits, creates tags, or pushes. The About dialog reads `package.json` directly. Run `npm run release:check -- vMAJOR.MINOR.PATCH` to validate release metadata locally before committing and manually creating/pushing the tag.
 - **Generated directories are not source.** Never edit `node_modules/`, `dist/`, `src-tauri/target/`, or `src-tauri/gen/`. `src-tauri/Cargo.lock` and `package-lock.json` are managed by their package managers.
 - **Archive counts exclude active-library counts.** Read/star edits on an archived article must not change active unread/star counts. Refresh bootstrap after archive/restore to reconcile feed/folder totals.

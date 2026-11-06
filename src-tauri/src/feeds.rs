@@ -191,7 +191,10 @@ pub fn http_get(
         host: resp.url().host_str().unwrap_or("this server").to_string(),
         limit_bytes: max_bytes,
     };
-    if resp.content_length().is_some_and(|length| length > max_bytes) {
+    if resp
+        .content_length()
+        .is_some_and(|length| length > max_bytes)
+    {
         return Err(size_error);
     }
     // reqwest decompresses before Read; also bound chunked responses without a length.

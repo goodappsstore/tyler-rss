@@ -119,9 +119,6 @@ const SETTINGS_ALIASES = [
   ["open_links_in_app", "openLinksInApp"],
   ["notifications_enabled", "notificationsEnabled"],
   ["unread_badge", "unreadBadge"],
-  ["tts_enabled", "ttsEnabled"],
-  ["tts_voice", "ttsVoice"],
-  ["tts_keep_playing", "ttsKeepPlaying"],
   ["llm_enabled", "llmEnabled"],
   ["llm_base_url", "llmBaseUrl"],
   ["llm_api_key", "llmApiKey"],
@@ -282,15 +279,6 @@ export const api = {
   setArticleTags: (articleId, tagIds) =>
     call("set_article_tags", { articleId, tagIds }).then(normalizeTagList),
   listTags: () => call("list_tags").then(normalizeTagList),
-
-  startTts: (sessionId) => call("start_tts", { sessionId }),
-  stopTts: (sessionId) => call("stop_tts", { sessionId }),
-  async synthesizeTts(sessionId, voice, tokens) {
-    const bytes = await call("synthesize_tts", { sessionId, voice, tokens });
-    const buffer = bytes instanceof ArrayBuffer ? bytes : new Uint8Array(bytes).buffer;
-    return new Float32Array(buffer);
-  },
-  prepareTts: (voice) => call("prepare_tts", { voice }),
 
   // Settings & data
   getSettings: () => call("get_settings").then(normalizeSettings),

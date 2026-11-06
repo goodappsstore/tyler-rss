@@ -12,8 +12,6 @@ mod settings;
 mod subscriptions;
 mod summaries;
 mod transfer;
-mod tts;
-mod tts_engine;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
@@ -27,8 +25,6 @@ pub struct AppState {
     pub running: AtomicBool,
     pub last_refresh: Mutex<Option<String>>,
     pub transfer_lock: Mutex<()>,
-    pub tts_download: Mutex<()>,
-    pub speech: tts_engine::SpeechEngine,
     pub summaries: summaries::SummaryCache,
     pub open_requests: Mutex<Vec<String>>,
 }
@@ -105,10 +101,6 @@ pub fn run() {
                 responder.respond(media_response(&path));
             });
         })
-        .register_asynchronous_uri_scheme_protocol("tyler-tts", |_ctx, request, responder| {
-            let path = request.uri().path().to_string();
-            std::thread::spawn(move || responder.respond(tts::asset_response(&path)));
-        })
         .setup(|app| {
             if let Err(e) = db::ensure_db() {
                 eprintln!("Tyler: could not prepare database: {e}");
@@ -148,10 +140,6 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            tts::prepare_tts,
-            tts_engine::start_tts,
-            tts_engine::synthesize_tts,
-            tts_engine::stop_tts,
             reader::fetch_article_source,
             reader::save_full_article,
             reader::export_article_markdown,

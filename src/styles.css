@@ -828,26 +828,6 @@ hr {
   color: var(--muted);
 }
 
-.titlebar-tts {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.titlebar-tts-status {
-  max-width: min(300px, 25vw);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 10px;
-  color: var(--muted);
-}
-
-.titlebar-command:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 .titlebar-key {
   letter-spacing: 0.02em;
 }

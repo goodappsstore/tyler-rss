@@ -1,6 +1,6 @@
 [package]
 name = "tyler"
-version = "0.1.2"
+version = "0.1.3"
 description = "Tyler — a local-first RSS reader"
 authors = ["Tyler"]
 license = "MIT"
@@ -41,4 +41,3 @@ encoding_rs = "0.8"
 tauri-plugin-deep-link = "2"
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 tauri-plugin-notification = "2"
-ort = { version = "=2.0.0-rc.12", default-features = false, features = ["std", "download-binaries", "tls-rustls", "api-24"] }

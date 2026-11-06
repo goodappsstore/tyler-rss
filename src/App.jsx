@@ -7,9 +7,6 @@ import {
   Inbox,
   Keyboard,
   Newspaper,
-  Play,
-  Pause,
-  Square,
   Rss,
   Search,
   Star,
@@ -28,7 +25,6 @@ import Onboarding from "./components/Onboarding";
 import Reader from "./components/Reader";
 import CommandPalette from "./components/CommandPalette";
 import ShortcutsSheet from "./components/ShortcutsSheet";
-import useTts from "./tts/useTts";
 import BrandMark from "./components/BrandMark";
 import {
   AddFeedDialog,
@@ -76,35 +72,11 @@ function mergeRefreshedArticles(current, incoming, sort) {
 const isMac =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
-function TitleBar({ onOpenPalette, tts, ttsEnabled, canSpeak }) {
-  const active = tts.playback.articleId != null;
-  const playLabel = active && !tts.playback.paused
-    ? "Pause reading aloud"
-    : tts.playback.paused ? "Resume reading aloud" : "Read current article aloud";
+function TitleBar({ onOpenPalette }) {
   return (
     <header className="titlebar">
       <div className="titlebar-drag" data-tauri-drag-region />
       <div className="titlebar-actions">
-        {ttsEnabled && (
-          <div className="titlebar-tts" role="group" aria-label="Read aloud">
-            <span className="titlebar-tts-status" role="status" title={tts.playback.title || tts.model.message}>
-              {tts.playback.articleId != null
-                ? `${tts.playback.paused ? "Paused" : tts.playback.status === "loading" ? "Preparing speech" : "Reading"} · ${tts.playback.title}`
-                : tts.model.status === "loading" ? tts.model.message : ""}
-            </span>
-            <button type="button" className="titlebar-command"
-              onClick={tts.play} disabled={!canSpeak && !active}
-              aria-label={playLabel} title={playLabel}>
-              {tts.playback.articleId != null && !tts.playback.paused ? <Pause size={13} /> : <Play size={13} />}
-            </button>
-            {active && (
-              <button type="button" className="titlebar-command" onClick={tts.stop}
-                aria-label="Stop reading aloud" title="Stop reading aloud">
-                <Square size={12} fill="currentColor" />
-              </button>
-            )}
-          </div>
-        )}
         <button
           type="button"
           className="titlebar-command"
@@ -307,7 +279,6 @@ export default function App() {
   detailRef.current = readerArticle;
 
   const settings = bootstrap?.settings;
-  const tts = useTts({ settings, article: readerArticle, selectedId, notify: push });
   const currentSummaryKey = readerArticle ? summaryRequestKey(readerArticle, settings) : null;
   const currentSummary = summaryJobs[currentSummaryKey];
   const feeds = bootstrap?.feeds ?? [];
@@ -1286,7 +1257,6 @@ export default function App() {
   }, [loadBootstrap, push]);
 
   async function handleImported(next) {
-    tts.stop();
     libraryGeneration.current += 1;
     fullArticleRequests.current = new Set();
     setFullArticleJobs({});
@@ -1759,8 +1729,7 @@ export default function App() {
 
   return (
     <div className={`app ${sidebarOpen ? "sidebar-open" : ""}`.trim()}>
-      <TitleBar onOpenPalette={() => setPaletteOpen(true)} tts={tts}
-        ttsEnabled={!!settings?.tts_enabled} canSpeak={!!readerArticle && !detailLoading} />
+      <TitleBar onOpenPalette={() => setPaletteOpen(true)} />
 
       {booting && !bootstrap ? (
         <Splash />
@@ -1961,8 +1930,6 @@ export default function App() {
             initialSection={dialog?.section || "appearance"}
             onClose={closeDialog}
             settings={settings}
-            ttsModel={tts.model}
-            onRetryTts={() => tts.prepare().catch(() => {})}
             onSave={handleSaveSettings}
             dataInfo={dataInfo}
             onOpenDataDir={api.openDataDir}

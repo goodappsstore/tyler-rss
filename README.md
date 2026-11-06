@@ -2,7 +2,7 @@
 
 **Your feeds. Your pace. Your machine.**
 
-Tyler is a beautiful, lightweight RSS reader for macOS, Windows, and Linux. Follow your favorite publications, read full articles offline, listen with local text to speech, and keep a searchable library of stories worth saving.
+Tyler is a beautiful, lightweight RSS reader for macOS, Windows, and Linux. Follow your favorite publications, read full articles offline, and keep a searchable library of stories worth saving.
 
 Your subscriptions, articles, reading state, and cached images live on your computer. No account, no cloud sync service, no telemetry. Free and open source under the [MIT license](LICENSE).
 
@@ -11,10 +11,10 @@ Your subscriptions, articles, reading state, and cached images live on your comp
 ## Why Tyler?
 
 - **A reader you want to spend time in.** A considered three-pane layout, warm typography, light and dark themes, and adjustable reading controls put your articles first.
-- **Small on disk, rich in features.** Built with Tauri and Rust, Tyler uses your system webview to keep the application footprint small. Optional speech models download separately, only when you enable read aloud.
+- **Small on disk, rich in features.** Built with Tauri and Rust, Tyler uses your system webview to keep the application footprint small.
 - **A library you own.** Read saved articles offline, search locally, and move your subscriptions or entire library whenever you choose.
 - **Useful from the first launch.** Pick from 90+ curated publications, paste a site URL, or import your existing subscriptions with OPML.
-- **Listen and summarize on your terms.** Speech runs locally. Optional summaries use an endpoint and model you choose, including a compatible local server.
+- **Summarize on your terms.** Optional summaries use an endpoint and model you choose, including a compatible local server.
 
 ## Features
 
@@ -44,7 +44,7 @@ Your subscriptions, articles, reading state, and cached images live on your comp
 - Export a **portable `.tyler.zip` backup** of your library and cached media. Restore validates and migrates the backup before replacing your library, with rollback and a safety copy.
 - Set automatic retention or clean up old articles manually; unread and starred articles are preserved.
 - Use tray controls, unread Dock/supported taskbar badges, optional system notifications, OPML file opening, and `feed:` links.
-- Enable **local read aloud** with 28 American and British English voices, or **optional summaries** through your own OpenAI-compatible endpoint.
+- Enable **optional summaries** through your own OpenAI-compatible endpoint.
 
 ## Get started
 
@@ -65,14 +65,6 @@ Closing the reader keeps Tyler running in the tray for refreshes and notificatio
 Automatic refresh respects each feed's **Fetch interval** in Manage feeds. The global Auto-refresh setting controls periodic checks; **Manual** disables those checks. Startup refresh fetches only feeds that are due. The Refresh button, `r`, and tray refresh fetch immediately.
 
 **Settings → Feeds & storage** controls retention, notifications, unread badges, and the feed download limit. The limit defaults to **20 MiB** per feed, discovery page, or OPML link, measured after decompression, and can be adjusted from 1–100 MiB. Oversized feeds show an error so you can raise the limit and retry.
-
-### Local read aloud
-
-Enable **Settings → Read aloud** and choose a voice. Tyler downloads its Kokoro speech model once, approximately **92 MB**, plus approximately **0.5 MB** per selected voice. Downloads show progress and can be retried. These optional files are separate from the application install.
-
-Use the play/pause and stop controls beside the command palette to listen to the selected article. Load the full article first if the feed only includes an excerpt. Speech works offline after the model and voice have downloaded, and speech generation keeps article text on your machine. Native ONNX Runtime ships with Tyler; no Python or separate speech runtime installation is needed.
-
-Enable **Keep speaking when switching articles** to continue listening while browsing. Voice changes apply to the next playback; disabling read aloud stops speech and retains downloaded files.
 
 ### Optional article summaries
 
@@ -110,13 +102,12 @@ Article navigation and action shortcuts pause while typing in a field or using a
 
 ## Privacy and network access
 
-Tyler stores your library locally and has **no telemetry or analytics**. Reading, organization, search, and speech generation run on your machine.
+Tyler stores your library locally and has **no telemetry or analytics**. Reading, organization, and search run on your machine.
 
 Network access supports the content and optional features you use:
 
 - Fetching feeds, discovering subscriptions, downloading images, importing OPML links, and loading full articles contacts the relevant websites.
 - Original pages, streamed audio/video, and embedded players contact their providers and may use those providers' tracking or cookies.
-- Enabling read aloud downloads the model and selected voices from Hugging Face; subsequent speech generation runs locally.
 - Requesting a summary sends the article title and text, subject to your configured input limit, to your chosen endpoint.
 
 Feed/discovery requests, OPML-link imports, and full-article fetches add the shared `ref=tyler-rss.com` query parameter when no `ref` parameter is present. Existing values are preserved. This identifies the application to the destination website; it contains no per-user identifier.
@@ -128,13 +119,12 @@ Persistent app data lives in your home directory on every supported platform:
 ```text
 ~/.tyler-rss/
 ├── tyler.sqlite   # subscriptions, articles, reading state, tags, settings, search index
-├── media/         # cached feed icons, covers, and inline images
-└── tts/           # optional downloaded speech model and voices
+└── media/         # cached feed icons, covers, and inline images
 ```
 
 On Windows, the default folder is `%USERPROFILE%\.tyler-rss`. Set `TYLER_DATA_DIR` before launching Tyler to use another location. Open the current folder with **Settings → Feeds & storage → Open**.
 
-Use **Transfer → Export backup** to move your library to another machine. Backups include local settings, including any configured summary API key. TTS model and voice files are excluded; they are retained when restoring on the same machine and downloaded again when needed on a new machine.
+Use **Transfer → Export backup** to move your library to another machine. Backups include local settings, including any configured summary API key.
 
 Wait for refreshes and image downloads to finish before restoring. Invalid backups leave your current library and previous safety copy in place. Safety copies are stored beside the data folder; the newest copy is retained after a successful import.
 
@@ -173,11 +163,7 @@ To build a packaged application on your platform:
 npm run tauri build
 ```
 
-Bundles are written under `src-tauri/target/release/bundle/`. The first Rust build downloads the native ONNX Runtime CPU library for supported targets. The optional speech model and voices are downloaded separately when read aloud is enabled.
-
-macOS bundles require macOS 13.3 or later, matching the speech runtime's build target. On Intel macOS, build ONNX Runtime 1.24.2 from source and set `ORT_LIB_PATH` to its static library build directory before building Tyler; the release workflow handles this automatically.
-
-Linux release builds use Ubuntu 24.04 for x64 and ARM64. Use Ubuntu 24.04 or a compatible distribution with glibc 2.39+ and the GCC 14 C++ runtime for these packages. The pinned speech runtime's prebuilt libraries require newer glibc/C++ symbols than Ubuntu 22.04 provides.
+Bundles are written under `src-tauri/target/release/bundle/`. macOS bundles require macOS 13.3 or later. Linux release builds use Ubuntu 24.04 for x64 and ARM64; use Ubuntu 24.04 or a compatible distribution.
 
 `npm run build` builds only the frontend. Use `npm run tauri dev` to run the complete reader with its Rust backend.
 
@@ -205,18 +191,16 @@ The release is published automatically only after all six builds pass and all tw
 
 The workflow uses the running repository and its built-in `GITHUB_TOKEN`, so it works in a temporary development repository and in `goodappsstore/tyler-rss` without changing workflow settings or adding a personal access token. GitHub Actions must be enabled and repository policy must allow `contents: write`. macOS builds use ad-hoc signing without notarization; Windows installers are unsigned. No signing secrets are required.
 
-Tyler's pinned speech runtime has prebuilt static libraries for five targets. Intel macOS builds compile and cache ONNX Runtime 1.24.2 from source, so the first build takes longer. See the [ONNX Runtime build guide](https://onnxruntime.ai/docs/build/inferencing.html) and [ort linking guide](https://ort.pyke.io/setup/linking) for that build path.
-
 ### Project structure
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | React interface, reader, command palette, dialogs, and speech playback |
-| `src-tauri/src/` | Rust backend: feeds, SQLite/FTS5, media, article extraction, speech inference, summaries, and backups |
+| `src/` | React interface, reader, command palette, and dialogs |
+| `src-tauri/src/` | Rust backend: feeds, SQLite/FTS5, media, article extraction, summaries, and backups |
 | `src-tauri/tauri.conf.json` | Desktop application and bundling configuration |
 | `public/` | App icon and early theme initialization |
 | `.github/workflows/release.yml` | Tag-only checks, native builds, installer verification, and release publication |
-| `.github/scripts/` | Release metadata/asset validation and Intel macOS speech-runtime build |
+| `.github/scripts/` | Release metadata and installer validation |
 | `scripts/bump-version.mjs` | Interactive version-file updater; never creates or pushes Git tags |
 | [PROJECT.md](PROJECT.md) | Detailed feature inventory, architecture, database schema, and maintenance notes |
 | [CONTRACT.md](CONTRACT.md) | Backend/frontend interface and design contract |
@@ -241,4 +225,4 @@ There is no formal test suite. Run `npm run check` for code changes and manually
 
 Copyright (c) 2026 Nitin Bansal. Tyler is released under the [MIT license](LICENSE).
 
-Third-party dependencies, fonts, and optional speech assets retain their respective licenses.
+Third-party dependencies and fonts retain their respective licenses.

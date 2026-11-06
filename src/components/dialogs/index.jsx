@@ -7,10 +7,9 @@ import {
   FolderPlus, Folder, ChevronDown, AlertCircle, Loader2,
   Download, Upload, FileArchive, FileText, Database, HardDrive, ExternalLink,
   Palette, BookOpen, Info, Sun, Moon, Monitor, Tags, BarChart3, CheckCircle2,
-  Link2, Sparkles, Volume2,
+  Link2, Sparkles,
 } from "lucide-react";
 import { api } from "../../api";
-import { TTS_VOICES } from "../../tts/voices";
 import { parseTagNames } from "../../lib/tags";
 import {
   FEED_STARTERS,
@@ -1210,7 +1209,6 @@ export function ManageFeedsDialog({ open, onClose, feeds = [], folders = [], onC
 const SECTIONS = [
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "reading", label: "Reading", icon: BookOpen },
-  { id: "tts", label: "Read aloud", icon: Volume2 },
   { id: "llm", label: "LLM summaries", icon: Sparkles },
   { id: "feeds", label: "Feeds & storage", icon: Database },
   { id: "about", label: "About", icon: Info },
@@ -1365,7 +1363,7 @@ function LlmSettingsForm({ settings, onSave }) {
   );
 }
 
-export function SettingsDialog({ open, onClose, settings = {}, onSave, dataInfo, onOpenDataDir, ttsModel, onRetryTts, initialSection = "appearance" }) {
+export function SettingsDialog({ open, onClose, settings = {}, onSave, dataInfo, onOpenDataDir, initialSection = "appearance" }) {
   const [section, setSection] = useState("appearance");
   const [local, setLocal] = useState(settings || {});
   const [info, setInfo] = useState(dataInfo || null);
@@ -1496,45 +1494,6 @@ export function SettingsDialog({ open, onClose, settings = {}, onSave, dataInfo,
 
         <div className="dlg-settings-main">
           <ErrorNote>{error}</ErrorNote>
-
-          {section === "tts" && (
-            <div className="dlg-stack dlg-stack-lg">
-              <header className="dlg-section-head">
-                <h3 className="dlg-settings-title">Read aloud</h3>
-                <p className="dlg-settings-lede">Listen to articles privately on your device with Kokoro.</p>
-              </header>
-              <InfoNote>
-                Enabling downloads the Kokoro ONNX model once (about 92 MB, plus a small voice file).
-                It is saved locally and reused, including offline. The “82M” in its name refers to
-                82 million parameters. Article text stays on your device.
-              </InfoNote>
-              <Toggle label="Enable text to speech"
-                description="Download only when enabled. Use the play, pause, and stop controls beside the command palette."
-                checked={!!local.tts_enabled} onChange={(value) => apply({ tts_enabled: value })} />
-              {local.tts_enabled && ttsModel?.message && (
-                <div role="status">
-                  {ttsModel.status === "error" ? <ErrorNote>{ttsModel.message}</ErrorNote> : <InfoNote>{ttsModel.message}</InfoNote>}
-                  {ttsModel.status === "error" && <button type="button" className="dlg-btn dlg-btn-ghost" onClick={onRetryTts}>Retry download</button>}
-                </div>
-              )}
-              <Field label="Voice" hint="Official Kokoro English voices. Each voice is downloaded once when selected (about 0.5 MB). Changes apply to the next playback.">
-                <select className="dlg-input" value={local.tts_voice || "af_heart"}
-                  onChange={(event) => apply({ tts_voice: event.target.value })}>
-                  {["American English", "British English"].map((language) => (
-                    <optgroup key={language} label={language}>
-                      {TTS_VOICES.filter((voice) => voice.language === language).map((voice) => (
-                        <option key={voice.id} value={voice.id}>{voice.name} · {voice.gender}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </Field>
-              <Toggle label="Keep speaking when switching articles"
-                description="Continue the original article as you browse. Turn off to stop when the selected article changes."
-                checked={!!local.tts_keep_playing} onChange={(value) => apply({ tts_keep_playing: value })} />
-              <p className="dlg-footnote">Reads the title and currently available article text. Load the full article before playing to hear its full text. Disabling stops playback and keeps downloaded files for next time. Playback starts with the first segment and prepares just one segment ahead.</p>
-            </div>
-          )}
 
           {section === "llm" && <LlmSettingsForm settings={local} onSave={onSave} />}
 

@@ -77,7 +77,8 @@ pub fn get_settings(conn: &Connection) -> AppResult<Settings> {
         ),
         font_size: read_i64(conn, "fontSize", d.font_size).clamp(14, 24),
         line_width: read_i64(conn, "lineWidth", d.line_width).clamp(520, 920),
-        article_list_width: read_i64(conn, "articleListWidth", d.article_list_width).clamp(280, 600),
+        article_list_width: read_i64(conn, "articleListWidth", d.article_list_width)
+            .clamp(280, 600),
         density: one_of(
             &read_str(conn, "density", &d.density),
             &["comfortable", "compact"],
@@ -112,16 +113,6 @@ pub fn get_settings(conn: &Connection) -> AppResult<Settings> {
         open_links_in_app: read_bool(conn, "openLinksInApp", d.open_links_in_app),
         notifications_enabled: read_bool(conn, "notificationsEnabled", d.notifications_enabled),
         unread_badge: read_bool(conn, "unreadBadge", d.unread_badge),
-        tts_enabled: read_bool(conn, "ttsEnabled", d.tts_enabled),
-        tts_voice: {
-            let voice = read_str(conn, "ttsVoice", &d.tts_voice);
-            if crate::tts::valid_voice(&voice) {
-                voice
-            } else {
-                d.tts_voice
-            }
-        },
-        tts_keep_playing: read_bool(conn, "ttsKeepPlaying", d.tts_keep_playing),
         llm_enabled: read_bool(conn, "llmEnabled", d.llm_enabled),
         llm_base_url: read_str(conn, "llmBaseUrl", &d.llm_base_url),
         llm_api_key: read_str(conn, "llmApiKey", &d.llm_api_key),
@@ -232,13 +223,6 @@ pub fn set_settings(conn: &mut Connection, patch: &Value) -> AppResult<Settings>
                 let v = number(value, key)?.clamp(0, 36500);
                 store(&tx, key, &Value::Number(v.into()))?;
             }
-            "ttsVoice" => {
-                let voice = text(value, key)?;
-                if !crate::tts::valid_voice(&voice) {
-                    return Err(AppError::Message("Unsupported Kokoro voice".into()));
-                }
-                store(&tx, key, &Value::String(voice))?;
-            }
             "llmBaseUrl" | "llmApiKey" | "llmModel" | "llmPrompt" => {
                 let v = text(value, key)?.trim().to_string();
                 if key == "llmBaseUrl" && !v.is_empty() {
@@ -266,8 +250,6 @@ pub fn set_settings(conn: &mut Connection, patch: &Value) -> AppResult<Settings>
             | "loadFullArticleByDefault"
             | "reduceMotion"
             | "openLinksInApp"
-            | "ttsEnabled"
-            | "ttsKeepPlaying"
             | "llmEnabled"
             | "notificationsEnabled"
             | "unreadBadge" => {
