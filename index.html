@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#bd3d0c" />
+    <link rel="icon" type="image/svg+xml" href="/tyler.svg" />
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>Tyler</title>
+  </head>
+  <body>
+    <div id="root">
+      <div class="app">
+        <div class="titlebar" data-tauri-drag-region></div>
+        <div class="splash" role="status" aria-label="Opening Tyler">
+          <div class="splash-inner">
+            <img src="/tyler.svg" width="52" height="52" class="splash-logo" alt="" />
+            <div class="splash-word">Tyler</div>
+            <div class="splash-track" aria-hidden="true"><div class="splash-fill"></div></div>
+            <p class="splash-note">Opening your library…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
