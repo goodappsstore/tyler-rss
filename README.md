@@ -177,6 +177,8 @@ Bundles are written under `src-tauri/target/release/bundle/`. The first Rust bui
 
 macOS bundles require macOS 13.3 or later, matching the speech runtime's build target. On Intel macOS, build ONNX Runtime 1.24.2 from source and set `ORT_LIB_PATH` to its static library build directory before building Tyler; the release workflow handles this automatically.
 
+Linux release builds use Ubuntu 24.04 for x64 and ARM64. Use Ubuntu 24.04 or a compatible distribution with glibc 2.39+ and the GCC 14 C++ runtime for these packages. The pinned speech runtime's prebuilt libraries require newer glibc/C++ symbols than Ubuntu 22.04 provides.
+
 `npm run build` builds only the frontend. Use `npm run tauri dev` to run the complete reader with its Rust backend.
 
 ### Versions and releases

@@ -1,6 +1,6 @@
 [package]
 name = "tyler"
-version = "0.1.1"
+version = "0.1.2"
 description = "Tyler — a local-first RSS reader"
 authors = ["Tyler"]
 license = "MIT"
