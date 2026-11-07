@@ -6,6 +6,8 @@ Tyler is a beautiful, lightweight RSS reader for macOS, Windows, and Linux. Foll
 
 Your subscriptions, articles, reading state, and cached images live on your computer. No account, no cloud sync service, no telemetry. Free and open source under the [MIT license](LICENSE).
 
+![Tyler homepage](screenshots/homepage.jpg)
+
 [Get started](#get-started) · [Features](#features) · [Privacy](#privacy-and-network-access) · [Build from source](#build-from-source) · [Contribute](#contributing)
 
 ## Why Tyler?
