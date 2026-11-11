@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Archive,
   BarChart3,
@@ -71,10 +72,12 @@ export default function Sidebar({
   const [deletingFolder, setDeletingFolder] = useState(null);
   const [deletingTag, setDeletingTag] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
+  const [dragPosition, setDragPosition] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
   const [movingId, setMovingId] = useState(null);
   const [moveError, setMoveError] = useState(null);
   const folderInputRef = useRef(null);
+  const scrollRef = useRef(null);
   const seeded = useRef(false);
   const dragCleanup = useRef(null);
   const suppressFeedClick = useRef(false);
@@ -110,6 +113,7 @@ export default function Sidebar({
   }, [addingFolder]);
 
   const unfiledFeeds = feeds.filter((feed) => feed.folder_id == null);
+  const draggedFeed = feeds.find((feed) => feed.id === draggingId);
 
   function navigate(nextScope) {
     onSelectScope(nextScope);
@@ -152,69 +156,129 @@ export default function Sidebar({
     const feed = feeds.find((item) => item.id === feedId);
     if (!feed || feed.folder_id === folderId || movingId != null) return;
     setMovingId(feedId);
+    setMoveError(null);
     try {
       await onMoveFeed(feedId, folderId);
       if (folderId != null) setExpanded((current) => new Set([...current, folderId]));
-    } catch (error) { setMoveError(errorMessage(error)); }
-    finally { setMovingId(null); }
+    } catch (error) {
+      setMoveError(errorMessage(error));
+    } finally {
+      setMovingId(null);
+    }
   }
 
   function startDrag(event, feed) {
-    if (event.button !== 0 || movingId != null) return;
+    if (!event.isPrimary || event.button !== 0 || movingId != null) return;
     dragCleanup.current?.();
+    suppressFeedClick.current = false;
+    const source = event.currentTarget;
     const startX = event.clientX;
     const startY = event.clientY;
     const pointerId = event.pointerId;
     let moved = false;
-    event.currentTarget.setPointerCapture(pointerId);
-    function destination(event) {
-      return document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-folder-drop]")?.dataset.folderDrop;
+    let pointerX = startX;
+    let pointerY = startY;
+    let scrollFrame = null;
+    source.setPointerCapture(pointerId);
+
+    function destination() {
+      const target = document.elementFromPoint(pointerX, pointerY)?.closest("[data-folder-drop]");
+      if (!target || !scrollRef.current?.contains(target)) return undefined;
+      const value = target.dataset.folderDrop;
+      return value === "uncategorized" ? null : Number(value);
     }
+
+    function updateDropTarget() {
+      const folderId = destination();
+      if (folderId === undefined || folderId === feed.folder_id) {
+        setDropTarget(null);
+      } else {
+        setDropTarget(folderId ?? "uncategorized");
+      }
+    }
+
+    function scrollWhileDragging() {
+      const scroll = scrollRef.current;
+      if (!scroll) return;
+      const bounds = scroll.getBoundingClientRect();
+      if (pointerX >= bounds.left && pointerX <= bounds.right) {
+        if (pointerY < bounds.top + 36) scroll.scrollTop -= 8;
+        else if (pointerY > bounds.bottom - 36) scroll.scrollTop += 8;
+      }
+      updateDropTarget();
+      scrollFrame = requestAnimationFrame(scrollWhileDragging);
+    }
+
     function onMove(event) {
       if (event.pointerId !== pointerId) return;
       if (!moved && Math.hypot(event.clientX - startX, event.clientY - startY) < 6) return;
-      moved = true;
-      setDraggingId(feed.id);
-      setMoveError(null);
-      const value = destination(event);
-      const folderId = value === "uncategorized" ? null : value === undefined ? undefined : Number(value);
-      setDropTarget(folderId !== undefined && folderId !== feed.folder_id ? value === "uncategorized" ? value : folderId : null);
+      event.preventDefault();
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+      if (!moved) {
+        moved = true;
+        suppressFeedClick.current = true;
+        setDraggingId(feed.id);
+        setMoveError(null);
+        scrollFrame = requestAnimationFrame(scrollWhileDragging);
+      }
+      setDragPosition({ x: pointerX, y: pointerY });
+      updateDropTarget();
     }
+
     function cleanup() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("blur", cleanup);
+      source.removeEventListener("lostpointercapture", cleanup);
+      cancelAnimationFrame(scrollFrame);
+      if (source.hasPointerCapture(pointerId)) source.releasePointerCapture(pointerId);
       setDraggingId(null);
+      setDragPosition(null);
       setDropTarget(null);
       dragCleanup.current = null;
     }
+
     function onUp(event) {
       if (event.pointerId !== pointerId) return;
-      const value = destination(event);
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+      const folderId = destination();
       cleanup();
       if (!moved) return;
-      suppressFeedClick.current = true;
-      setTimeout(() => { suppressFeedClick.current = false; }, 0);
-      if (value !== undefined) moveToFolder(feed.id, value === "uncategorized" ? null : Number(value));
+      if (folderId !== undefined) moveToFolder(feed.id, folderId);
     }
-    function onCancel() { cleanup(); }
-    window.addEventListener("pointermove", onMove);
+
+    function onCancel(event) {
+      if (event.pointerId === pointerId) cleanup();
+    }
+
+    function onKeyDown(event) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      cleanup();
+    }
+
+    window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("blur", cleanup);
+    source.addEventListener("lostpointercapture", cleanup);
     dragCleanup.current = cleanup;
   }
 
-  function dropHandlers(folderId) {
-    return { "data-folder-drop": folderId ?? "uncategorized" };
-  }
-
-  function selectFeed(feed) {
-    if (!suppressFeedClick.current) navigate({ type: "feed", id: feed.id });
+  function selectFeed(event, feed) {
+    if (suppressFeedClick.current && event.detail > 0) return;
+    navigate({ type: "feed", id: feed.id });
   }
 
   return (
-    <aside className="sidebar" aria-label="Library navigation">
-      <div className="sidebar-scroll">
+    <aside className={`sidebar ${draggingId != null ? "is-dragging-feed" : ""}`.trim()} aria-label="Library navigation">
+      <div className="sidebar-scroll" ref={scrollRef}>
         <button
           type="button"
           className="brand"
@@ -343,8 +407,8 @@ export default function Sidebar({
               const unread = folder.unread_count ?? byFolder[folder.id] ?? 0;
               const active = scope.type === "folder" && scope.id === folder.id;
               return (
-                <div className="folder-group" key={folder.id}>
-                  <div className={`folder-row ${active ? "is-active" : ""} ${dropTarget === folder.id ? "is-drop-target" : ""}`.trim()} {...dropHandlers(folder.id)}>
+                <div className="folder-group" key={folder.id} data-folder-drop={folder.id}>
+                  <div className={`folder-row ${active ? "is-active" : ""} ${dropTarget === folder.id ? "is-drop-target" : ""}`.trim()}>
                     <button
                       type="button"
                       className={`folder-chevron ${open ? "is-open" : ""}`.trim()}
@@ -404,7 +468,7 @@ export default function Sidebar({
                           feed={feed}
                           unread={feed.unread_count ?? byFeed[feed.id] ?? 0}
                           active={scope.type === "feed" && scope.id === feed.id}
-                          onClick={() => selectFeed(feed)}
+                          onClick={(event) => selectFeed(event, feed)}
                           onPointerDown={(event) => startDrag(event, feed)}
                           dragging={draggingId === feed.id}
                           moving={movingId === feed.id}
@@ -417,15 +481,15 @@ export default function Sidebar({
             })}
 
             {(unfiledFeeds.length > 0 || draggingId != null) && (
-              <div className="folder-group unfiled-group">
-                <div className={`unfiled-label ${dropTarget === "uncategorized" ? "is-drop-target" : ""}`} {...dropHandlers(null)}>Uncategorized</div>
+              <div className="folder-group unfiled-group" data-folder-drop="uncategorized">
+                <div className={`unfiled-label ${dropTarget === "uncategorized" ? "is-drop-target" : ""}`.trim()}>Uncategorized</div>
                 {unfiledFeeds.map((feed) => (
                   <FeedRow
                     key={feed.id}
                     feed={feed}
                     unread={feed.unread_count ?? byFeed[feed.id] ?? 0}
                     active={scope.type === "feed" && scope.id === feed.id}
-                    onClick={() => selectFeed(feed)}
+                    onClick={(event) => selectFeed(event, feed)}
                     onPointerDown={(event) => startDrag(event, feed)}
                     dragging={draggingId === feed.id}
                     moving={movingId === feed.id}
@@ -438,6 +502,9 @@ export default function Sidebar({
               <p className="sidebar-hint">No feeds yet.</p>
             )}
             {moveError && <p className="sidebar-move-error" role="alert">{moveError}</p>}
+            {draggingId != null && (
+              <p className="sidebar-hint" role="status">Drop on a folder or Uncategorized. Esc cancels.</p>
+            )}
           </div>
         </div>
 
@@ -563,6 +630,17 @@ export default function Sidebar({
           )}
         </div>
       </div>
+      {draggedFeed && dragPosition && createPortal(
+        <div
+          className="feed-drag-preview"
+          style={{ left: dragPosition.x + 14, top: dragPosition.y + 14 }}
+          aria-hidden="true"
+        >
+          <FeedIcon title={draggedFeed.title} iconUrl={draggedFeed.icon_url} size={15} />
+          <span>{draggedFeed.title}</span>
+        </div>,
+        document.body
+      )}
     </aside>
   );
 }

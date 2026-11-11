@@ -11,6 +11,14 @@ rust-version = "1.90"
 name = "tyler_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
+# Explicitly disable stripping: Cargo's automatic debuginfo stripping can produce
+# proc-macro dylibs that macOS 27 refuses to load (rust-lang/rust#157750).
+[profile.dev]
+strip = "none"
+
+[profile.release]
+strip = "none"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

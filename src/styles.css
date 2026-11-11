@@ -1238,9 +1238,34 @@ hr {
   border-radius: 7px;
 }
 
-.feed-row[draggable="true"] { cursor: grab; }
-.feed-row[draggable="true"]:active { cursor: grabbing; }
+.feed-row:not(:disabled) { cursor: grab; }
+.sidebar.is-dragging-feed,
+.sidebar.is-dragging-feed * { cursor: grabbing; }
 .feed-row.is-dragging { opacity: 0.45; }
+
+.feed-drag-preview {
+  position: fixed;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 240px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-overlay);
+  font-size: 12px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.feed-drag-preview > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .sidebar-move-error { padding: 8px; color: var(--danger); font-size: 11px; line-height: 1.5; }
 .onboarding-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 14px 0; }
 .suggestion.is-selected { border-color: var(--accent); background: var(--accent-soft); }
@@ -2959,4 +2984,4 @@ img {
 }
 
 /* Pointer dragging coexists with Tauri's native OPML file drops on every desktop. */
-.feed-row { touch-action: none; }
+.feed-row { touch-action: none; user-select: none; }

@@ -1138,7 +1138,7 @@ export function ManageFeedsDialog({ open, onClose, feeds = [], folders = [], onC
                               autoCorrect="off"
                             />
                           </Field>
-                          <div className="dlg-grid-2 dlg-align-end">
+                          <div className="dlg-grid-2">
                             <Field label="Fetch interval" hint="Used for automatic refresh. Manual refresh checks immediately.">
                               <select
                                 className="dlg-select"

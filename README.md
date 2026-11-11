@@ -58,6 +58,8 @@ Check the repository's [Releases page](https://github.com/goodappsstore/tyler-rs
 
 Feeds and images load in the background while you read. You can select several starter publications and add them to the same folder together. Drop an `.opml` file anywhere in the app to import subscriptions.
 
+To move a feed, drag its sidebar row onto another folder's name or feed list. Drop it on **Uncategorized** to remove it from a folder. The destination highlights as you drag; hold near the sidebar's top or bottom edge to scroll, or press **Esc** to cancel.
+
 Closing the reader keeps Tyler running in the tray for refreshes and notifications. Choose **Quit Tyler** in the tray menu to exit.
 
 ### Reading and feed settings

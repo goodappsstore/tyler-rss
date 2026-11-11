@@ -927,56 +927,42 @@ fn extension_for(content_type: &str, url: &Url) -> &'static str {
     "jpg"
 }
 
-fn html_candidates(html: &str, base_url: &str) -> Vec<Candidate> {
+fn html_feed_urls(html: &str, base_url: &str) -> Vec<String> {
     let Ok(selector) = Selector::parse("link[rel~=\"alternate\"]") else {
         return Vec::new();
     };
     let doc = Html::parse_document(html);
-    let base = Url::parse(base_url)
-        .ok()
-        .map(|u| {
-            let mut origin = u.clone();
-            origin.set_path("");
-            origin.set_query(None);
-            origin.set_fragment(None);
-            origin.to_string()
-        })
-        .unwrap_or_else(|| base_url.to_string());
     let mut out = Vec::new();
     for element in doc.select(&selector) {
-        let kind_type = element
+        let media_type = element
             .value()
             .attr("type")
             .unwrap_or("")
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
             .to_ascii_lowercase();
-        let kind = if kind_type.contains("atom") {
-            "atom"
-        } else if kind_type.contains("json") {
-            "json"
-        } else if kind_type.contains("rss") || kind_type.contains("xml") {
-            "rss"
-        } else {
+        // oEmbed also advertises alternate XML/JSON links, but they are not feeds.
+        if !matches!(
+            media_type.as_str(),
+            "application/rss+xml"
+                | "application/atom+xml"
+                | "application/feed+json"
+                | "application/rdf+xml"
+                | "application/xml"
+                | "text/xml"
+                | "application/json"
+        ) {
             continue;
-        };
+        }
         let Some(href) = element.value().attr("href") else {
             continue;
         };
         let Some(url) = resolve_url(base_url, href) else {
             continue;
         };
-        let title = element
-            .value()
-            .attr("title")
-            .map(str::to_string)
-            .filter(|t| !t.trim().is_empty())
-            .unwrap_or_else(|| url.clone());
-        out.push(Candidate {
-            title,
-            url,
-            site_url: Some(base.clone()),
-            description: None,
-            kind: kind.to_string(),
-        });
+        out.push(url);
     }
     out
 }
@@ -986,7 +972,7 @@ fn candidate_from_feed(feed: &ParsedFeed, url: &str) -> Candidate {
         title: text_of(feed.title.as_ref())
             .map(|t| truncate_chars(&strip_html(&t), 300))
             .filter(|t| !t.is_empty())
-            .unwrap_or_else(|| url.to_string()),
+            .unwrap_or_else(|| feed_host(url).unwrap_or_else(|| "Untitled feed".into())),
         url: url.to_string(),
         site_url: feed_site_url(feed, url),
         description: text_of(feed.description.as_ref())
@@ -1030,20 +1016,24 @@ pub fn discover(url: &str, max_bytes: u64) -> AppResult<Vec<Candidate>> {
         return Ok(vec![candidate_from_feed(&feed, &first.final_url)]);
     }
     let html = String::from_utf8_lossy(&first.bytes).to_string();
-    let mut candidates = html_candidates(&html, &first.final_url);
-    dedup_candidates(&mut candidates);
+    let candidates = discover_candidates(html_feed_urls(&html, &first.final_url), max_bytes)?;
     if !candidates.is_empty() {
-        candidates.truncate(8);
         return Ok(candidates);
     }
-    for suffix in suffix_urls(&first.final_url) {
+    discover_candidates(suffix_urls(&first.final_url), max_bytes)
+}
+
+fn discover_candidates(urls: Vec<String>, max_bytes: u64) -> AppResult<Vec<Candidate>> {
+    let mut candidates: Vec<Candidate> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for url in urls {
         if candidates.len() >= 8 {
             break;
         }
-        if candidates.iter().any(|c| c.url == suffix) {
+        if !seen.insert(url.clone()) {
             continue;
         }
-        let body = match http_get(&suffix, None, None, true, max_bytes) {
+        let body = match http_get(&url, None, None, true, max_bytes) {
             Ok(HttpResult::Ok(body)) => body,
             Err(error @ AppError::DownloadTooLarge { .. }) => return Err(error),
             _ => continue,
@@ -1055,13 +1045,7 @@ pub fn discover(url: &str, max_bytes: u64) -> AppResult<Vec<Candidate>> {
             }
         }
     }
-    candidates.truncate(8);
     Ok(candidates)
-}
-
-fn dedup_candidates(candidates: &mut Vec<Candidate>) {
-    let mut seen = std::collections::HashSet::new();
-    candidates.retain(|c| seen.insert(c.url.clone()));
 }
 
 /// Save a subscription without making any network requests.
@@ -1126,10 +1110,7 @@ fn fetch_subscription_inner(conn: &Connection, feed_id: i64, input: &str) -> App
     let mut parsed = parse_feed(&body.bytes).ok();
     if parsed.is_none() {
         let html = String::from_utf8_lossy(&body.bytes);
-        let mut candidates: Vec<String> = html_candidates(&html, &body.final_url)
-            .into_iter()
-            .map(|candidate| candidate.url)
-            .collect();
+        let mut candidates = html_feed_urls(&html, &body.final_url);
         candidates.extend(suffix_urls(&body.final_url));
         let mut seen = std::collections::HashSet::new();
         for candidate in candidates
