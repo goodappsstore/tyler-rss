@@ -88,7 +88,9 @@ pub fn run() {
                         .into_owned()
                 }
             });
-            desktop::queue_open_requests(app, requests);
+            if !desktop::queue_open_requests(app, requests) {
+                commands::show_main_window(app);
+            }
         }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())

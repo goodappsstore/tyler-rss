@@ -5,7 +5,8 @@ use tauri::{
     AppHandle, Emitter, Manager,
 };
 
-pub fn queue_open_requests(app: &AppHandle, requests: impl IntoIterator<Item = String>) {
+/// Queue supported files and links, and show the main window if any were added.
+pub fn queue_open_requests(app: &AppHandle, requests: impl IntoIterator<Item = String>) -> bool {
     let state = app.state::<AppState>();
     let mut queued = false;
     if let Ok(mut pending) = state.open_requests.lock() {
@@ -29,6 +30,7 @@ pub fn queue_open_requests(app: &AppHandle, requests: impl IntoIterator<Item = S
         commands::show_main_window(app);
         let _ = app.emit("desktop:open", ());
     }
+    queued
 }
 
 #[tauri::command]

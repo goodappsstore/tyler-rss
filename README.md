@@ -60,7 +60,7 @@ Feeds and images load in the background while you read. You can select several s
 
 To move a feed, drag its sidebar row onto another folder's name or feed list. Drop it on **Uncategorized** to remove it from a folder. The destination highlights as you drag; hold near the sidebar's top or bottom edge to scroll, or press **Esc** to cancel.
 
-Closing the reader keeps Tyler running in the tray for refreshes and notifications. Choose **Quit Tyler** in the tray menu to exit.
+Closing the reader keeps Tyler running in the tray for refreshes and notifications. Launch Tyler again or choose **Open Tyler** in the tray menu to reopen the reader. Choose **Quit Tyler** to exit.
 
 ### Reading and feed settings
 
@@ -118,15 +118,14 @@ Feed/discovery requests, OPML-link imports, and full-article fetches add the sha
 
 ## Data and backups
 
-Persistent app data lives in your home directory on every supported platform:
+Tyler stores `tyler.sqlite` (subscriptions, articles, reading state, tags, settings, and search index) and `media/` (cached icons, covers, and inline images) in the same directory.
 
-```text
-~/.tyler-rss/
-├── tyler.sqlite   # subscriptions, articles, reading state, tags, settings, search index
-└── media/         # cached feed icons, covers, and inline images
-```
+- Linux defaults to `~/.config/tyler-rss` and follows `$XDG_CONFIG_HOME/tyler-rss` when `XDG_CONFIG_HOME` is an absolute path.
+- macOS defaults to `~/.tyler-rss`. Windows defaults to `%USERPROFILE%\.tyler-rss`.
 
-On Windows, the default folder is `%USERPROFILE%\.tyler-rss`. Set `TYLER_DATA_DIR` before launching Tyler to use another location. Open the current folder with **Settings → Feeds & storage → Open**.
+On Linux, Tyler moves an existing `~/.tyler-rss` library on first launch if the new directory is absent. If the move fails or the old directory is a symlink, Tyler continues using the old location. If both locations exist, Tyler uses the new location and preserves the old library.
+
+Set `TYLER_DATA_DIR` before launching Tyler to use another location. Open the current folder with **Settings → Feeds & storage → Open**.
 
 Use **Transfer → Export backup** to move your library to another machine. Backups include local settings, including any configured summary API key.
 

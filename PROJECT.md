@@ -80,7 +80,7 @@ The React frontend owns the library, reader, command palette, dialogs, and keybo
 - Reading statistics dialog: totals, 14-day activity chart, and per-feed breakdown.
 - Manual cleanup of old articles, with starred and unread articles preserved.
 - Automatic retention runs after refresh when `retentionDays > 0`. It shares the manual cleanup implementation, preserves unread/starred articles, deletes related media, and updates library counts. Selection/deletion share an immediate SQLite transaction. Zero means forever.
-- Data directory override through `TYLER_DATA_DIR`.
+- Linux stores the library in the XDG config directory and migrates existing libraries on launch. Every platform supports the `TYLER_DATA_DIR` override.
 - Settings → Feeds & storage → Open asks the backend to open the actual data directory in the system file manager, including overridden locations; failures appear in Settings.
 - No account, sync service, telemetry, or analytics.
 
@@ -96,7 +96,7 @@ The React frontend owns the library, reader, command palette, dialogs, and keybo
 - Database and filesystem IPC commands run through `spawn_blocking`, keeping SQLite lock waits and large queries off the UI thread. Article ingestion uses a short transaction; network image downloads run after it commits.
 - Responsive sidebar with mobile/backdrop behavior.
 - Native macOS overlay titlebar with adjusted traffic-light positioning.
-- Tray icon with Open Tyler, Refresh feeds, and Quit Tyler. Closing the main window hides it; tray refresh remains available.
+- Tray icon with Open Tyler, Refresh feeds, and Quit Tyler. Closing the main window hides it and keeps tray refresh available. Launching Tyler again restores the running instance's reader window.
 - Unread count in the tray tooltip/window title, plus an optional Dock/supported taskbar badge. Windows has no numeric badge API.
 - Optional new-article notifications after refresh, enabled explicitly in Settings with system permission. Unread badge and notification settings persist.
 - Open links in Tyler is exposed in Settings → Reading. Remote pages use separate windows without main-window IPC capabilities; HTTP(S)/mailto links otherwise use the system handler.
@@ -210,8 +210,10 @@ tyler-rss/
 
 ### Database location
 
-- Default: `~/.tyler-rss/tyler.sqlite`
-- Override: set `TYLER_DATA_DIR` to another directory.
+- Linux uses `$XDG_CONFIG_HOME/tyler-rss/tyler.sqlite` when `XDG_CONFIG_HOME` is absolute, otherwise `~/.config/tyler-rss/tyler.sqlite`.
+- macOS uses `~/.tyler-rss/tyler.sqlite`. Windows uses `%USERPROFILE%\.tyler-rss\tyler.sqlite`.
+- `TYLER_DATA_DIR` overrides all defaults and bypasses migration.
+- On Linux, Tyler moves the legacy `~/.tyler-rss` directory as a unit before opening SQLite if the destination is absent. It keeps using the legacy location if the move fails or the source is a symlink. An existing destination takes precedence and the legacy directory stays in place.
 - SQLite is configured with `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`, and `synchronous=NORMAL`.
 - Schema version is stored in `PRAGMA user_version`; currently `4`. Version 4 adds extracted-article persistence and audio/video enclosures and clears validators once for reparsing. Version 3 repairs legacy media paths and URLs to include the `media/` prefix without redownloading files.
 - Migrations are additive and idempotent (`ALTER TABLE ... ADD COLUMN` when missing) to tolerate older databases and imported backups.
@@ -365,7 +367,7 @@ Settings values are stored as JSON text and use camelCase keys:
 ### Data directory layout
 
 ```text
-~/.tyler-rss/
+<data directory>/
 ├── tyler.sqlite                  # Main SQLite database.
 ├── tyler.sqlite-wal              # WAL journal (when present).
 ├── tyler.sqlite-shm              # Shared-memory WAL file (when present).
@@ -375,7 +377,7 @@ Settings values are stored as JSON text and use camelCase keys:
     └── articles/                 # Cached inline article images.
 ```
 
-- Safety backups are created next to the data directory, e.g. `~/.tyler-rss.backup-20261102T120000Z-<uuid>/`. Only the newest copy is retained after a successful import; failed imports do not prune earlier copies.
+- Safety backups are created next to the data directory. Only the newest copy for that location is retained after a successful import. Failed imports do not prune earlier copies.
 - Media paths stored in SQLite are relative to the data directory and include `media/`, e.g. `media/covers/123-image.jpg`. Media URLs use `tyler-media://localhost/media/...`; the frontend converts these through Tauri for the current platform, and the article sanitizer permits only the generated local image URL format.
 - The custom protocol and deletion helpers canonicalize paths and require targets to remain inside the library's media directory. Absolute paths, traversal, and symlinks leading outside that directory are rejected.
 - New inline-image caching keeps the original remote URLs in stored HTML; `get_article` rewrites images whose cached files exist when rendering.

@@ -1,7 +1,7 @@
 # Tyler — build contract (single source of truth)
 
 Tyler is a local-first RSS reader desktop app: Tauri 2 + React 19 + Vite, Rust backend, SQLite (FTS5).
-Data dir: `~/.tyler-rss` (override `TYLER_DATA_DIR`), files: `tyler.sqlite`, `media/` (feed icons, article cover images, inline images). Everything binary lives next to the DB.
+The data directory contains `tyler.sqlite` and `media/` (feed icons, covers, and inline images). Linux defaults to `$XDG_CONFIG_HOME/tyler-rss` for an absolute `XDG_CONFIG_HOME` or `~/.config/tyler-rss` otherwise. macOS defaults to `~/.tyler-rss` and Windows to `%USERPROFILE%\.tyler-rss`. `TYLER_DATA_DIR` overrides the default and bypasses Linux migration.
 
 **Product name:** Tyler. Never use the words calm, peaceful, quiet, serene, sanctuary, oasis, haven, breathe, mindful, distraction-free, cozy, curated with love, etc. Write plain, sharp product copy.
 
@@ -116,6 +116,6 @@ Editorial, tactile, high-craft. Not a generic dashboard.
 - Background refresh merges the fresh first page into the loaded article list instead of resetting it. Keep the current cursor, loaded pages, selected row, and open reader article; new stories go at the top for newest-first and at the end for other orders. A late detail request must never replace a loaded article with an empty value.
 - All SQLite/filesystem IPC handlers run inside `spawn_blocking`; network work never runs on the UI thread. First-fetch and image queues are separate, and image downloads never hold an article-ingestion write transaction.
 
-Desktop lifecycle: native tray menu Open Tyler / Refresh feeds / Quit Tyler; closing the main window hides it. Single-instance and deep-link plugins deliver `.opml` paths and `feed:` links into a startup-safe queue. Installed bundles register OPML association and feed scheme. Native file drag/drop is enabled; sidebar feed movement uses pointer dragging.
+The native tray menu has Open Tyler, Refresh feeds, and Quit Tyler. Closing the main window hides it. A second launch restores the running instance's reader window, and the single-instance and deep-link plugins deliver `.opml` paths and `feed:` links into a startup-safe queue. Installed bundles register the OPML association and feed scheme. Native file drag/drop is enabled. Sidebar feed movement uses pointer dragging.
 
 Media: persist audio/video feed links and Media RSS URLs in article_enclosures; serve them with native controls and preload=none. Backend sanitization, frontend sanitization, and CSP permit only HTTPS www.youtube.com/embed/, www.youtube-nocookie.com/embed/, and player.vimeo.com/video/ iframes; sandbox frames and strip objects/scripts/forms. Find in article highlights up to 1,000 literal case-insensitive body matches with next/previous navigation. Full content and enclosure metadata are included in portable backups; streaming media is not downloaded.

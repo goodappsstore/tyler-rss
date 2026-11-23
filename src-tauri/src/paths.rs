@@ -1,12 +1,68 @@
 use std::path::{Component, Path, PathBuf};
+use std::sync::OnceLock;
 
-/// Data directory: TYLER_DATA_DIR override, else ~/.tyler-rss.
+/// Resolve the library location once so a failed Linux migration keeps using the same path.
 pub fn data_dir() -> PathBuf {
+    static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
+    DATA_DIR.get_or_init(resolve_data_dir).clone()
+}
+
+fn resolve_data_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("TYLER_DATA_DIR") {
         if !dir.trim().is_empty() {
             return PathBuf::from(dir);
         }
     }
+    default_data_dir()
+}
+
+#[cfg(target_os = "linux")]
+fn default_data_dir() -> PathBuf {
+    let home = std::env::home_dir().filter(|path| path.is_absolute());
+    let config_dir = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .or_else(|| home.as_ref().map(|path| path.join(".config")))
+        .unwrap_or_else(|| PathBuf::from(".config"));
+    let data_dir = config_dir.join("tyler-rss");
+    let Some(legacy_dir) = home.map(|path| path.join(".tyler-rss")) else {
+        return data_dir;
+    };
+
+    if !legacy_dir.is_dir() {
+        return data_dir;
+    }
+    match std::fs::symlink_metadata(&data_dir) {
+        Ok(_) => return data_dir,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            eprintln!("Tyler: could not check {}: {error}", data_dir.display());
+            return legacy_dir;
+        }
+    }
+    // A user-managed link can have a relative target that would break after a move.
+    if legacy_dir.is_symlink() {
+        return legacy_dir;
+    }
+
+    // Move the whole library together, including any SQLite sidecars and cached media.
+    let result =
+        std::fs::create_dir_all(&config_dir).and_then(|()| std::fs::rename(&legacy_dir, &data_dir));
+    if let Err(error) = result {
+        if legacy_dir.is_dir() {
+            eprintln!(
+                "Tyler: could not move the library to {}: {error}. Using {}.",
+                data_dir.display(),
+                legacy_dir.display()
+            );
+            return legacy_dir;
+        }
+    }
+    data_dir
+}
+
+#[cfg(not(target_os = "linux"))]
+fn default_data_dir() -> PathBuf {
     for key in ["HOME", "USERPROFILE"] {
         if let Ok(home) = std::env::var(key) {
             if !home.trim().is_empty() {

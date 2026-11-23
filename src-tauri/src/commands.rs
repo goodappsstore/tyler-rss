@@ -846,10 +846,11 @@ pub fn ping() -> Result<String, String> {
     Ok("pong".to_string())
 }
 
-/// Show the hidden window after its loading screen has loaded.
+/// Restore the reader window and bring it forward.
 pub fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
+        let _ = window.unminimize();
         let _ = window.set_focus();
     }
 }
